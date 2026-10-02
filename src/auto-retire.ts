@@ -136,6 +136,7 @@ export async function retirePlugin(ctx?: RetireContext): Promise<"uninstalled" |
     const msg = `🎉 检测到 omp 已增加原生 AnySearch 支持！插件 ${pluginName} 已自动卸载。后续会话将直接使用原生引擎。`;
     ctx?.logger?.info?.(`${logPrefix} ${msg}`);
     ctx?.ui?.notify(msg, "info");
+    process.stderr.write(`\n\x1b[32m${msg}\x1b[0m\n\n`);
     return "uninstalled";
   } catch (uninstallError) {
     const errorMsg = uninstallError instanceof Error ? uninstallError.message : String(uninstallError);
@@ -148,6 +149,7 @@ export async function retirePlugin(ctx?: RetireContext): Promise<"uninstalled" |
     const msg = `检测到 omp 已增加原生 AnySearch 支持！由于卸载受阻，插件 ${pluginName} 已自动禁用，释放搜索控制权。`;
     ctx?.logger?.info?.(`${logPrefix} ${msg}`);
     ctx?.ui?.notify(msg, "info");
+    process.stderr.write(`\n\x1b[33m${msg}\x1b[0m\n\n`);
     return "disabled";
   } catch (disableError) {
     const errorMsg = disableError instanceof Error ? disableError.message : String(disableError);
@@ -159,6 +161,7 @@ export async function retirePlugin(ctx?: RetireContext): Promise<"uninstalled" |
     const msg = `检测到 omp 已增加原生 AnySearch 支持！插件 ${pluginName} 已在 lockfile 中标记禁用。`;
     ctx?.logger?.info?.(`${logPrefix} ${msg}`);
     ctx?.ui?.notify(msg, "info");
+    process.stderr.write(`\n\x1b[33m${msg}\x1b[0m\n\n`);
     return "disabled";
   }
 
