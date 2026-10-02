@@ -2,6 +2,7 @@ import type * as z from "zod";
 import { searchAnySearch, extractAnySearch, AnySearchError } from "./src/api.js";
 import { formatAnySearchResults, formatExtractResult } from "./src/formatter.js";
 import { loadAnySearchConfig, saveAnySearchConfig, maskApiKey } from "./src/config.js";
+import { checkNativeAnySearch, retirePlugin } from "./src/auto-retire.js";
 // Type definitions compatible with @oh-my-pi/pi-coding-agent Extension API
 interface ToolResultContent {
   type: string;
@@ -31,15 +32,35 @@ interface ExtensionCommandContext {
     notify(message: string, type?: "info" | "warning" | "error"): void;
   };
 }
+interface ExtensionSessionContext {
+  cwd: string;
+  ui: {
+    notify(message: string, type?: "info" | "warning" | "error"): void;
+  };
+  models?: {
+    resolve?(spec: string): { id: string; provider: string } | undefined;
+    list?(): Array<{ id: string; provider: string }>;
+  };
+}
+
+interface PiInternalExports {
+  getSearchProvider?(name: string): Promise<{ id: string; label?: string }>;
+  isRegisteredSearchEngine?(name: string): boolean;
+}
 
 interface ExtensionAPI {
   zod: typeof z;
+  pi?: PiInternalExports;
   setLabel(label: string): void;
   logger?: {
     info(...args: unknown[]): void;
     warn(...args: unknown[]): void;
     error(...args: unknown[]): void;
   };
+  on(
+    event: string,
+    handler: (event: unknown, ctx: ExtensionSessionContext) => Promise<void> | void
+  ): void;
   registerTool(def: {
     name: string;
     label: string;
@@ -62,9 +83,27 @@ interface ExtensionAPI {
   ): void;
 }
 
-export default function anysearchExtension(pi: ExtensionAPI): void {
+export default async function anysearchExtension(pi: ExtensionAPI): Promise<void> {
   const z = pi.zod;
   pi.setLabel("AnySearch Provider");
+
+  // Check if omp already provides native AnySearch support at load time
+  const nativeAtStartup = await checkNativeAnySearch({ pi: pi.pi });
+  if (nativeAtStartup) {
+    pi.logger?.info?.("[AnySearch] Native AnySearch engine detected at startup; skipping shadow tools.");
+    pi.on("session_start", async (_event, ctx) => {
+      await retirePlugin({ ui: ctx.ui, logger: pi.logger });
+    });
+    return;
+  }
+
+  // Register session_start check in case native models become active during session lifecycle
+  pi.on("session_start", async (_event, ctx) => {
+    const nativeActive = await checkNativeAnySearch({ pi: pi.pi, models: ctx.models });
+    if (nativeActive) {
+      await retirePlugin({ ui: ctx.ui, logger: pi.logger });
+    }
+  });
 
   // 1. Shadow the built-in web_search tool so all agent web searches route through AnySearch
   pi.registerTool({
