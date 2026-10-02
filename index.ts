@@ -117,10 +117,16 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
       recency: z.enum(["day", "week", "month", "year"]).optional().describe("Recency filter"),
       limit: z.number().min(1).max(10).optional().describe("Max results to return (1-10)"),
       num_search_results: z.number().min(1).max(10).optional().describe("Provider-native search breadth"),
-      tag: z.string().optional().describe("Capability tag for vertical search, e.g. 'code.doc' (requires params.library), 'academic.search', 'finance.quote'"),
+      tag: z.enum(["code.doc", "academic.search", "finance.quote"]).optional().describe("Capability tag for vertical search: 'code.doc' (library documentation, requires params.library), 'academic.search', 'finance.quote'"),
       zone: z.enum(["cn", "intl"]).optional().describe("Search zone: 'cn' or 'intl'"),
       language: z.string().optional().describe("Preferred language, e.g. 'zh-CN' or 'en'"),
-      params: z.record(z.string(), z.unknown()).optional().describe("Domain-specific parameters for vertical tags (e.g. { library: 'react' } for 'code.doc')"),
+      params: z
+        .object({
+          library: z.string().optional().describe("Package/library name (e.g. 'react', 'vue'). REQUIRED when tag is 'code.doc'"),
+        })
+        .passthrough()
+        .optional()
+        .describe("Domain-specific parameters for vertical tags. When tag is 'code.doc', library is REQUIRED."),
     }),
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const query = typeof params.query === "string" ? params.query : "";
@@ -132,6 +138,10 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
       const extraParams = typeof params.params === "object" && params.params !== null
         ? (params.params as Record<string, unknown>)
         : undefined;
+
+      if (tag === "code.doc" && (!extraParams || typeof extraParams.library !== "string" || !extraParams.library.trim())) {
+        throw new AnySearchError("Tag 'code.doc' requires 'params.library' (e.g. { library: 'react' }).");
+      }
       const config = loadAnySearchConfig();
 
       if (config.enabled !== false && config.apiKey) {
@@ -229,11 +239,17 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
       "When using specialized tags like 'code.doc', ensure the corresponding params are provided.",
     parameters: z.object({
       query: z.string().describe("Search query text"),
-      tag: z.string().optional().describe("Capability tag for vertical domain. Supported tags: 'code.doc' (requires params.library), 'academic.search', 'finance.quote'."),
+      tag: z.enum(["code.doc", "academic.search", "finance.quote"]).optional().describe("Capability tag for vertical domain: 'code.doc' (requires params.library), 'academic.search', 'finance.quote'"),
       zone: z.enum(["cn", "intl"]).optional().describe("Region: 'cn' or 'intl'"),
       language: z.string().optional().describe("Preferred language, e.g. 'zh-CN' or 'en'"),
       max_results: z.number().min(1).max(10).optional().describe("Number of results (1-10)"),
-      params: z.record(z.string(), z.unknown()).optional().describe("Domain-specific extra parameters. For 'code.doc', params.library is REQUIRED (e.g. { library: 'react' })."),
+      params: z
+        .object({
+          library: z.string().optional().describe("Package/library name (e.g. 'react', 'vue'). REQUIRED when tag is 'code.doc'"),
+        })
+        .passthrough()
+        .optional()
+        .describe("Domain-specific parameters for vertical tags. When tag is 'code.doc', library is REQUIRED."),
     }),
     async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
       const config = loadAnySearchConfig();
