@@ -1,0 +1,16 @@
+{
+  "name": "omp-anysearch-provider",
+  "version": "1.0.0",
+  "description": "AnySearch search provider integration for Oh My Pi (omp)",
+  "main": "index.ts",
+  "type": "module",
+  "omp": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "zod": "^4.6.5"
+  }
+}
