@@ -52,7 +52,6 @@ export interface AnySearchParams {
 
 const SEARCH_ENDPOINT = "https://api.anysearch.com/v1/search";
 const EXTRACT_ENDPOINT = "https://api.anysearch.com/v1/extract";
-const SUB_DOMAINS_ENDPOINT = "https://api.anysearch.com/v1/sub-domains";
 
 export async function searchAnySearch(
   params: AnySearchParams,
@@ -129,32 +128,4 @@ export async function extractAnySearch(
   }
 
   return (await res.json()) as AnySearchExtractResponse;
-}
-
-export async function getSubDomainsAnySearch(
-  domain?: string,
-  apiKey?: string,
-  signal?: AbortSignal
-): Promise<unknown> {
-  const headers: Record<string, string> = {};
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  }
-
-  const endpoint = domain
-    ? `${SUB_DOMAINS_ENDPOINT}?domain=${encodeURIComponent(domain)}`
-    : SUB_DOMAINS_ENDPOINT;
-
-  const res = await fetch(endpoint, {
-    method: "GET",
-    headers,
-    signal,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => "");
-    throw new AnySearchError(`AnySearch sub-domains failed: HTTP ${res.status} - ${errorText.slice(0, 200)}`, res.status);
-  }
-
-  return await res.json();
 }

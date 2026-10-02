@@ -2,25 +2,16 @@
 
 AnySearch search provider integration for [Oh My Pi (omp)](https://omp.sh/).
 
-## Features
+## 核心特性
 
-- **Built-in `web_search` Shadowing**: Seamlessly intercepts model web searches to use AnySearch's REST API (`https://api.anysearch.com/v1/search`) as the primary search engine.
-- **Graceful Native Fallback**: If AnySearch encounters a rate limit, quota exhaustion (HTTP 402), or network failure, it automatically delegates to omp's native search engine via `ctx.invokeTool`, ensuring uninterrupted operation.
-- **Vertical Domain Search**: Dedicated `anysearch` tool supporting AnySearch's 40 capability tags (e.g. `code.doc`, `academic.search`, `finance.quote`), regions (`cn` or `intl`), and structured query parameters.
-- **Page Extraction**: Dedicated `anysearch_extract` tool utilizing AnySearch's `/v1/extract` endpoint to extract clean readable markdown from any web page.
-- **Slash Commands**:
-  - `/anysearch-status`: Check AnySearch connection and latency.
-  - `/anysearch-setup <api_key>`: Configure or update your AnySearch API key.
-  - `/anysearch <query>`: Direct CLI search test.
+- **接管 `web_search`**：无缝路由模型搜索至 AnySearch 官方 REST API (`/v1/search`)。
+- **自动降级容灾**：遇到网络异常、限流或配额耗尽（402）时，自动回退至 omp 原生引擎（`ctx.invokeTool`）。
+- **原生支持自动隐退**：检测到 omp 内核增加原生 `anysearch` 支持后，启动时自动卸载并交还控制权。
+- **扩展工具与指令**：提供 `anysearch`（垂直 Tag 搜索）、`anysearch_extract`（网页抽取）及 `/anysearch-status` / `/anysearch-setup` 指令。
 
-## Configuration
+## 配置方式
 
-The API key is resolved with the following precedence:
-
-1. Environment variable: `ANYSEARCH_API_KEY`
-2. Configuration file: `~/.omp/agent/anysearch.json` (or `~/.omp/anysearch.json`)
-
-Example `~/.omp/agent/anysearch.json`:
+优先级：`ANYSEARCH_API_KEY` 环境变量 > `~/.omp/agent/anysearch.json`
 
 ```json
 {
@@ -32,8 +23,8 @@ Example `~/.omp/agent/anysearch.json`:
 }
 ```
 
-## Tools Registered
+## 安装与挂载
 
-1. `web_search`: Standard search tool used by omp models, powered by AnySearch with automatic fallback.
-2. `anysearch`: Advanced vertical search with `tag`, `zone`, `params`, and `language` options.
-3. `anysearch_extract`: Web page markdown extraction tool.
+```bash
+omp plugin link /path/to/omp-anysearch-provider
+```
