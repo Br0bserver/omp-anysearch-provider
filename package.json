@@ -2,6 +2,20 @@
   "name": "omp-anysearch-provider",
   "version": "1.0.0",
   "description": "AnySearch search provider integration for Oh My Pi (omp)",
+  "license": "MIT",
+  "author": "BrightObserver <br0bserver@outlook.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Br0bserver/omp-anysearch-provider.git"
+  },
+  "homepage": "https://github.com/Br0bserver/omp-anysearch-provider#readme",
+  "keywords": [
+    "omp",
+    "oh-my-pi",
+    "anysearch",
+    "web-search",
+    "search-provider"
+  ],
   "main": "index.ts",
   "type": "module",
   "omp": {
