@@ -117,9 +117,10 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
       recency: z.enum(["day", "week", "month", "year"]).optional().describe("Recency filter"),
       limit: z.number().min(1).max(10).optional().describe("Max results to return (1-10)"),
       num_search_results: z.number().min(1).max(10).optional().describe("Provider-native search breadth"),
-      tag: z.string().optional().describe("Capability tag for vertical search, e.g. 'code.doc', 'finance.quote'"),
+      tag: z.string().optional().describe("Capability tag for vertical search, e.g. 'code.doc' (requires params.library), 'academic.search', 'finance.quote'"),
       zone: z.enum(["cn", "intl"]).optional().describe("Search zone: 'cn' or 'intl'"),
       language: z.string().optional().describe("Preferred language, e.g. 'zh-CN' or 'en'"),
+      params: z.record(z.string(), z.unknown()).optional().describe("Domain-specific parameters for vertical tags (e.g. { library: 'react' } for 'code.doc')"),
     }),
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const query = typeof params.query === "string" ? params.query : "";
@@ -128,7 +129,9 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
       const tag = typeof params.tag === "string" ? params.tag : undefined;
       const zone = params.zone === "cn" || params.zone === "intl" ? params.zone : undefined;
       const language = typeof params.language === "string" ? params.language : undefined;
-
+      const extraParams = typeof params.params === "object" && params.params !== null
+        ? (params.params as Record<string, unknown>)
+        : undefined;
       const config = loadAnySearchConfig();
 
       if (config.enabled !== false && config.apiKey) {
@@ -145,6 +148,7 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
               tag,
               zone: zone ?? config.defaultZone ?? "intl",
               language,
+              params: extraParams,
             },
             config.apiKey,
             signal
@@ -217,15 +221,19 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
     name: "anysearch",
     label: "AnySearch Advanced",
     description:
-      "Direct AnySearch vertical search with explicit tags (e.g. 'code.doc', 'academic.search', 'finance.quote'), " +
-      "region zones ('cn' or 'intl'), and structured parameters.",
+      "Direct AnySearch vertical search with explicit tags, region zones ('cn' or 'intl'), and structured domain parameters.\n" +
+      "Supported vertical tags & requirements:\n" +
+      "- 'code.doc': Documentation search for software libraries/frameworks. REQUIRED: params.library (e.g. { library: 'react' }).\n" +
+      "- 'academic.search': Scholarly papers and scientific literature.\n" +
+      "- 'finance.quote': Stock quotes and financial market data.\n" +
+      "When using specialized tags like 'code.doc', ensure the corresponding params are provided.",
     parameters: z.object({
       query: z.string().describe("Search query text"),
-      tag: z.string().optional().describe("Capability tag for vertical domain (e.g. 'code.doc', 'finance.quote')"),
+      tag: z.string().optional().describe("Capability tag for vertical domain. Supported tags: 'code.doc' (requires params.library), 'academic.search', 'finance.quote'."),
       zone: z.enum(["cn", "intl"]).optional().describe("Region: 'cn' or 'intl'"),
       language: z.string().optional().describe("Preferred language, e.g. 'zh-CN' or 'en'"),
       max_results: z.number().min(1).max(10).optional().describe("Number of results (1-10)"),
-      params: z.record(z.string(), z.unknown()).optional().describe("Domain-specific extra parameters (e.g. { library: 'react' })"),
+      params: z.record(z.string(), z.unknown()).optional().describe("Domain-specific extra parameters. For 'code.doc', params.library is REQUIRED (e.g. { library: 'react' })."),
     }),
     async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
       const config = loadAnySearchConfig();
@@ -242,6 +250,9 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
         ? (params.params as Record<string, unknown>)
         : undefined;
 
+      if (tag === "code.doc" && (!extraParams || typeof extraParams.library !== "string" || !extraParams.library.trim())) {
+        throw new AnySearchError("Tag 'code.doc' requires 'params.library' (e.g. { library: 'react' }).");
+      }
       const res = await searchAnySearch(
         {
           query,
@@ -270,9 +281,12 @@ export default async function anysearchExtension(pi: ExtensionAPI): Promise<void
   pi.registerTool({
     name: "anysearch_extract",
     label: "AnySearch Page Extraction",
-    description: "Extract cleaned, readable markdown content from any web page URL via AnySearch extraction service.",
+    description:
+      "Extract cleaned, readable markdown content from any web page URL via AnySearch extraction service.\n" +
+      "- Best suited for: documentation, blog posts, news articles, Wikipedia, and public static/SSR web pages.\n" +
+      "- Limitations & Guidelines: Cannot extract behind logins, CAPTCHAs, or complex client-side SPAs. For code repositories (e.g. GitHub/GitLab), pass raw file URLs (e.g. https://raw.githubusercontent.com/... instead of https://github.com/.../blob/...).",
     parameters: z.object({
-      url: z.string().url().describe("The URL to extract content from"),
+      url: z.string().url().describe("The web page URL to extract content from. Must be a publicly accessible HTTP/HTTPS URL. Prefer raw content URLs over complex dynamic SPA web views."),
     }),
     async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
       const config = loadAnySearchConfig();
